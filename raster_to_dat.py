@@ -1,11 +1,9 @@
 import fiona
 import rasterio
 import datetime
+from math import radians, cos, sin, sqrt, atan2
 
 def read_shapefile(shapefile_path):
-    """
-    Reads a shapefile and returns a list of coordinates (latitude, longitude).
-    """
     points = []
     with fiona.open(shapefile_path, 'r') as shapefile:
         for feature in shapefile:
@@ -18,31 +16,40 @@ def read_shapefile(shapefile_path):
     return points
 
 def get_raster_values_at_location(raster_paths, lat, lng):
-    """
-    Reads raster files and returns a list of values at the given location.
-    """
     values = []
     for raster_path in raster_paths:
         try:
             with rasterio.open(raster_path) as src:
                 coords = src.index(lng, lat)
                 raster_value = src.read(1)[coords[1], coords[0]]
-                # Check for NoData values
                 if raster_value == src.nodata:
-                    print(f"NoData value encountered at {raster_path} for coordinates ({lat}, {lng})")
                     values.append(None)
                 else:
                     values.append(raster_value)
         except Exception as e:
-            print(f"Error reading {raster_path} for coordinates ({lat}, {lng}): {e}")
             values.append(None)
     return values
 
+def haversine_distance(lat1, lon1, lat2, lon2):
+    R = 6371.0  # Earth radius in kilometers
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return R * c
+
+def find_closest_valid_point(points, target_lat, target_lng, raster_values_list):
+    min_distance = float('inf')
+    closest_values = None
+    for i, (lat, lng) in enumerate(points):
+        if None not in raster_values_list[i]:
+            distance = haversine_distance(target_lat, target_lng, lat, lng)
+            if distance < min_distance:
+                min_distance = distance
+                closest_values = raster_values_list[i]
+    return closest_values
+
 def create_dat_file(dat_file_path, points, raster_values_list, parameter_names):
-    """
-    Creates a .dat file with the given parameters.
-    Change the parameters as needed.
-    """
     try:
         with open(dat_file_path, 'w') as file:
             file.write("* General info about this file\n")
@@ -69,7 +76,9 @@ def create_dat_file(dat_file_path, points, raster_values_list, parameter_names):
             file.write("* ----------------\n")
             for i, ((lat, lng), raster_values) in enumerate(zip(points, raster_values_list)):
                 if None in raster_values:
-                    continue  # Skip this point if any raster value is missing
+                    raster_values = find_closest_valid_point(points, lat, lng, raster_values_list)
+                    if raster_values is None:
+                        continue  # Skip if no valid point found
                 date = datetime.date(2010, 1, 1) + datetime.timedelta(days=i)
                 file.write(f"* Parameters for {date:%Y-%m-%d}, Latitude: {lat}, Longitude: {lng}\n")
                 for param_name, value in zip(parameter_names, raster_values):
@@ -81,9 +90,6 @@ def create_dat_file(dat_file_path, points, raster_values_list, parameter_names):
         print(f"Error creating data file: {e}")
 
 def main():
-    """
-    Main function to run the script.
-    """
     shapefile_path = "C:/D/Soil/SHAPEFILE/pb_hr.shp"
     raster_paths = [
         "C:/D/Soil/Four_States/Cu_FourStates.tif",
