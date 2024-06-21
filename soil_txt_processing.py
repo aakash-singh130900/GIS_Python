@@ -1,23 +1,5 @@
-def input_file():
-    with open('C:/pythia/Simulation_Data/eGHR/AU.SOL', 'r') as file:
-        content = file.read()
-    print("File read successfully")
-
-    sections = content.split('*')
-    print(f"Number of sections: {len(sections)}")
-
-    with open('C:/pythia/Simulation_Data/eGHR/Processed_AU.SOL', 'w') as outfile:
-        for section in sections:
-            if 'SLB' in section.strip():
-                processed_section, non_numeric_rows, final_output = process_data_point_section(section)
-                outfile.write('\n' + '*' + section.split('\n', 1)[0] + '\n')  
-                for row in non_numeric_rows:
-                    outfile.write(row + '\n') 
-                for row in final_output:
-                    formatted_row = '     F A    ' + ' '.join([f"{value:.1f}" if value == -99 else f"{value:.3f}" for value in row])
-                    outfile.write(formatted_row + '\n')
-            else:
-                outfile.write(section.split('\n', 1)[0] + '\n')  
+import os
+import glob
 
 def process_data_point_section(section):
     lines = section.strip().split('\n')[1:]
@@ -42,4 +24,31 @@ def process_data_point_section(section):
 
     return section, non_numeric_rows, final_output
 
-input_file()
+def process_files(input_dir, output_dir):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    for file_path in glob.glob(os.path.join(input_dir, '*.SOL')):
+        with open(file_path, 'r') as file:
+            content = file.read()
+        print(f"Processing file: {os.path.basename(file_path)}")
+
+        sections = content.split('*')
+
+        output_path = os.path.join(output_dir, os.path.basename(file_path))
+        with open(output_path, 'w') as outfile:
+            for section in sections:
+                if 'SLB' in section.strip():
+                    processed_section, non_numeric_rows, final_output = process_data_point_section(section)
+                    outfile.write('\n' + '*' + section.split('\n', 1)[0] + '\n')  
+                    for row in non_numeric_rows:
+                        outfile.write(row + '\n') 
+                    for row in final_output:
+                        formatted_row = '     F A    ' + ' '.join([f"{value:.1f}" if value == -99 else f"{value:.3f}" for value in row])
+                        outfile.write(formatted_row + '\n')
+                else:
+                    outfile.write('*' + section if section else '')
+
+input_dir = 'C:/pythia/Simulation_Data/eGHR'
+output_dir = 'C:/pythia/Simulation_Data_India/eGHR'
+process_files(input_dir, output_dir)
