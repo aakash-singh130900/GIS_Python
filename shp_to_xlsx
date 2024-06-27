@@ -1,0 +1,32 @@
+import geopandas as gpd
+import pandas as pd
+import os
+
+# Define input and output file paths
+input_shapefile_path = r"C:/pythia/Simulation_Data/Sri_Lanka/shapes/Sri_Lanka.shp"
+output_excel_path = r"C:/Users/dell/Desktop/lat_lng.xlsx"
+
+# Ensure output directory exists
+os.makedirs(os.path.dirname(output_excel_path), exist_ok=True)
+
+# Read the shapefile using geopandas
+gdf = gpd.read_file(input_shapefile_path)
+
+# Convert the GeoDataFrame to a DataFrame, including coordinates
+df = gdf.copy()
+df['Latitude'] = df.geometry.y
+df['Longitude'] = df.geometry.x
+
+# Extract unique latitudes and longitudes, and sort them
+unique_latitudes = sorted(df['Latitude'].unique())
+unique_longitudes = sorted(df['Longitude'].unique())
+
+# Add new columns for unique latitudes and longitudes
+# This example adds NaN values for rows exceeding the length of unique values
+df['Unique Latitude'] = pd.Series(unique_latitudes).reindex(df.index)
+df['Unique Longitude'] = pd.Series(unique_longitudes).reindex(df.index)
+
+# Save the DataFrame to an Excel file
+df.drop(columns='geometry').to_excel(output_excel_path, index=False)
+
+print(f"Attributes successfully exported to {output_excel_path}")
