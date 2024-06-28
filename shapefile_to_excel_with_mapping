@@ -1,0 +1,42 @@
+import geopandas as gpd
+import pandas as pd
+
+# File paths
+input_shapefile_path = r"C:/pythia/Simulation_Data/Sri_Lanka/shapes/Sri_Lanka.shp"
+output_excel_path = r"C:/Users/dell/Desktop/lat_lng.xlsx"
+
+# Read the shapefile using geopandas
+gdf = gpd.read_file(input_shapefile_path)
+
+# Convert the GeoDataFrame to a DataFrame, including coordinates
+df = gdf.copy()
+df['Latitude'] = df.geometry.y
+df['Longitude'] = df.geometry.x
+
+# Extract unique latitudes and longitudes and sort them
+unique_latitudes = sorted(df['Latitude'].unique())
+unique_longitudes = sorted(df['Longitude'].unique())
+
+# Function to convert number to Excel-style letters
+def num_to_excel_col(n):
+    result = ''
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        result = chr(65 + remainder) + result
+    return result
+
+# Create mappings for unique latitudes and longitudes to alphabet values
+unique_latitude_values = {lat: num_to_excel_col(i + 1) for i, lat in enumerate(unique_latitudes)}
+unique_longitude_values = {lon: num_to_excel_col(i + 1) for i, lon in enumerate(unique_longitudes)}
+
+# Add new columns for unique latitude and longitude values
+df['Unique Latitude Values'] = df['Latitude'].map(unique_latitude_values)
+df['Unique Longitude Values'] = df['Longitude'].map(unique_longitude_values)
+
+# Combine the alphabet values to create the Info_Weather column
+df['Info_Weather'] = df['Unique Latitude Values'] + df['Unique Longitude Values']
+
+# Save the DataFrame to an Excel fileat
+df.drop(columns='geometry').to_excel(output_excel_path, index=False)
+
+print(f"Attributes successfully exported to {output_excel_path}")
